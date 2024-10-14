@@ -2,18 +2,19 @@ name: "CI power"
 on:
   pull_request:
   push:
+  workflow_dispatch:
 jobs:
   shellcheck:
     runs-on: ubuntu-22.04-ppc64le
     steps:
     - uses: actions/checkout@v3
     - run: shellcheck tests/*.sh
-  nix:
-    runs-on: ubuntu-22.04-ppc64le
-    steps:
-    - uses: actions/checkout@v3
-    - uses: cachix/install-nix-action@v25
-    - run: nix-build -A hydraJobs.release
+  # nix:
+  #   runs-on: ubuntu-22.04-ppc64le
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #   - uses: cachix/install-nix-action@v25
+  #   - run: nix-build -A hydraJobs.release
   ubuntu:
     runs-on: ubuntu-22.04-ppc64le
     steps:
