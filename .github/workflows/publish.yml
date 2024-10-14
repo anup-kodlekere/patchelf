@@ -1,6 +1,7 @@
 name: Publish
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches:
       - '*'
@@ -10,7 +11,7 @@ on:
 jobs:
   build_tarballs:
     name: Build tarballs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04-ppc64le
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -25,53 +26,18 @@ jobs:
           name: patchelf
           path: dist/*
 
-  build_windows:
-    name: Build windows executable
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v25
-      - name: Build windows executable
-        run: |
-          nix build -L .#patchelf-win32 .#patchelf-win64
-          install -D ./result/bin/patchelf.exe ./dist/patchelf-win32-$(cat version).exe
-          install -D ./result-1/bin/patchelf.exe ./dist/patchelf-win64-$(cat version).exe
-      - uses: actions/upload-artifact@v3
-        with:
-          name: patchelf
-          path: dist/*
-
-  test_windows:
-    name: Test windows binaries
-    needs: [build_windows]
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
-        with:
-          name: patchelf
-          path: dist
-      - name: Show binaries
-        run: dir .\\dist
-      - name: Test windows 64-bit binary
-        run: .\\dist\\patchelf-win32-*.exe --version
-
-      - name: Test windows 32-bit binary
-        run: .\\dist\\patchelf-win64-*.exe --version
-
   build_musl:
     name: Build static musl binaries
     needs: [build_tarballs]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04-ppc64le
     strategy:
       fail-fast: false
       matrix:
-        platform: ["amd64", "i386", "ppc64le", "arm64v8", "arm32v7", "s390x", "riscv64"]
+        platform: ["ppc64le"]
     steps:
-      - name: Set up QEMU
-        if: matrix.platform != 'amd64'
-        uses: docker/setup-qemu-action@v3
+      # - name: Set up QEMU
+      #   if: matrix.platform != 'amd64'
+      #   uses: docker/setup-qemu-action@v3
 
       - uses: actions/download-artifact@v3
         with:
@@ -114,22 +80,3 @@ jobs:
         with:
           name: patchelf
           path: dist/*
-
-  publish:
-    name: Publish tarballs & binaries
-    needs: [build_tarballs, build_windows, build_musl]
-    if: github.event_name == 'push' && github.repository == 'NixOS/patchelf' && startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: patchelf
-          path: dist
-      - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/*
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
